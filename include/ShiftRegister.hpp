@@ -5,54 +5,105 @@
 
 namespace avr {
 
+enum class ShiftDirection {
+    LSBFirst,
+    MSBFirst
+};
+
 /**
  * Shift out function. Performance optimized of Arduino's default shiftOut.
  * This is only for LSB-First, and uses directly the ports of the chip.
  */
-template <typename DataPin, typename ClockPin>
+template <typename DataPin, typename ClockPin, ShiftDirection Direction = ShiftDirection::LSBFirst>
 inline static void shiftOut(const uint8_t data) {
 
     // Manually unrolled for loop
 
-    // bit 0 (LSB)
-    if (data & 0B00000001) { DataPin::set(); } else { DataPin::unset(); }
-    ClockPin::toggle();
-    ClockPin::toggle();
+    if constexpr (Direction == ShiftDirection::LSBFirst) {
 
-    // bit 1
-    if (data & 0B00000010) { DataPin::set(); } else { DataPin::unset(); }
-    ClockPin::toggle();
-    ClockPin::toggle();
+        // bit 0
+        if (data & 0b00000001) { DataPin::set(); } else { DataPin::unset(); }
+        ClockPin::toggle();
+        ClockPin::toggle();
 
-    // bit 2
-    if (data & 0B00000100) { DataPin::set(); } else { DataPin::unset(); }
-    ClockPin::toggle();
-    ClockPin::toggle();
+        // bit 1
+        if (data & 0b00000010) { DataPin::set(); } else { DataPin::unset(); }
+        ClockPin::toggle();
+        ClockPin::toggle();
 
-    // bit 3
-    if (data & 0B00001000) { DataPin::set(); } else { DataPin::unset(); }
-    ClockPin::toggle();
-    ClockPin::toggle();
+        // bit 2
+        if (data & 0b00000100) { DataPin::set(); } else { DataPin::unset(); }
+        ClockPin::toggle();
+        ClockPin::toggle();
 
-    // bit 4
-    if (data & 0B00010000) { DataPin::set(); } else { DataPin::unset(); }
-    ClockPin::toggle();
-    ClockPin::toggle();
+        // bit 3
+        if (data & 0b00001000) { DataPin::set(); } else { DataPin::unset(); }
+        ClockPin::toggle();
+        ClockPin::toggle();
 
-    // bit 5
-    if (data & 0B00100000) { DataPin::set(); } else { DataPin::unset(); }
-    ClockPin::toggle();
-    ClockPin::toggle();
+        // bit 4
+        if (data & 0b00010000) { DataPin::set(); } else { DataPin::unset(); }
+        ClockPin::toggle();
+        ClockPin::toggle();
 
-    // bit 6
-    if (data & 0B01000000) { DataPin::set(); } else { DataPin::unset(); }
-    ClockPin::toggle();
-    ClockPin::toggle();
+        // bit 5
+        if (data & 0b00100000) { DataPin::set(); } else { DataPin::unset(); }
+        ClockPin::toggle();
+        ClockPin::toggle();
 
-    // bit 7
-    if (data & 0B10000000) { DataPin::set(); } else { DataPin::unset(); }
-    ClockPin::toggle();
-    ClockPin::toggle();
+        // bit 6
+        if (data & 0b01000000) { DataPin::set(); } else { DataPin::unset(); }
+        ClockPin::toggle();
+        ClockPin::toggle();
+
+        // bit 7
+        if (data & 0b10000000) { DataPin::set(); } else { DataPin::unset(); }
+        ClockPin::toggle();
+        ClockPin::toggle();
+
+    } else {
+
+        // bit 7
+        if (data & 0b10000000) { DataPin::set(); } else { DataPin::unset(); }
+        ClockPin::toggle();
+        ClockPin::toggle();
+
+        // bit 6
+        if (data & 0b01000000) { DataPin::set(); } else { DataPin::unset(); }
+        ClockPin::toggle();
+        ClockPin::toggle();
+
+        // bit 5
+        if (data & 0b00100000) { DataPin::set(); } else { DataPin::unset(); }
+        ClockPin::toggle();
+        ClockPin::toggle();
+
+        // bit 4
+        if (data & 0b00010000) { DataPin::set(); } else { DataPin::unset(); }
+        ClockPin::toggle();
+        ClockPin::toggle();
+
+        // bit 3
+        if (data & 0b00001000) { DataPin::set(); } else { DataPin::unset(); }
+        ClockPin::toggle();
+        ClockPin::toggle();
+
+        // bit 2
+        if (data & 0b00000100) { DataPin::set(); } else { DataPin::unset(); }
+        ClockPin::toggle();
+        ClockPin::toggle();
+
+        // bit 1
+        if (data & 0b00000010) { DataPin::set(); } else { DataPin::unset(); }
+        ClockPin::toggle();
+        ClockPin::toggle();
+
+        // bit 0
+        if (data & 0b00000001) { DataPin::set(); } else { DataPin::unset(); }
+        ClockPin::toggle();
+        ClockPin::toggle();
+
+    }
 
 }
 
@@ -62,22 +113,23 @@ inline static void shiftOut(const uint8_t data) {
 template <
     typename ClockPin,
     typename LatchPin,
-    typename DataPin
+    typename DataPin,
+    ShiftDirection Direction = ShiftDirection::LSBFirst
 >
 class ShiftRegister {
 public:
 
     /** Updates the state of all the outputs. */
-    ShiftRegister& Set(const uint8_t value) {
+    ShiftRegister& set(const uint8_t value) {
         _value = value;
         return *this;
     }
 
     /** Updates the physical register to reflect the changes. */
-    void Update() const {
+    void update() const {
 
         // Send all the data
-        shiftOut<DataPin, ClockPin>(_value);
+        shiftOut<DataPin, ClockPin, Direction>(_value);
 
         // Toggle latch
         LatchPin::toggle();
