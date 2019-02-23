@@ -1,73 +1,88 @@
 #pragma once
 
-#include <avr/io.h>
-#include <avr/interrupt.h>
+#include "Utility.hpp"
 
 namespace avr {
 
-enum class PinPort {
-    B, C, D
+enum class Port {
+    A, B, C, D, E, F
 };
 
 enum class PinMode {
     Input,
     InputPullup,
-    Output,
-    PWM
+    Output
 };
 
-enum class Timer {
-    Timer0A,
-    Timer0B,
-    Timer1A,
-    Timer1B,
-    Timer2A,
-    Timer2B
-};
+
 
 /**
- * Very simple abstraction over a single IO pin.
- * It basically just wraps the operations with the registers in a more friendly interface.
+ * Specializations of port_traits provide the following fields:
+ * 
+ * static constexpr volatile uint8_t* dataDirectionRegister = ...;
+ * static constexpr volatile uint8_t* outputRegister = ...;
+ * static constexpr volatile uint8_t* inputRegister = ...;
  */
-template <PinPort Port, uint8_t N, PinMode Mode>
-struct Pin {
+template <Port P>
+struct port_traits;
 
-    static constexpr uint8_t Mask = 1 << N;
+// Automatically implement all the specializations of port_traits
+// based on the macros defined by the compiler
+
+#define AVR_UTILS_SPECIALIZE_PORT_TRAITS(p)                                      \
+    template<> struct port_traits<Port::p> {                                  \
+        static volatile uint8_t& dataDirectionRegister() { return DDR ##p; }  \
+        static volatile uint8_t& outputRegister() { return PORT ##p; }        \
+        static volatile uint8_t& inputRegister() { return PIN ##p; }          \
+    };
+
+#ifdef PORTA
+AVR_UTILS_SPECIALIZE_PORT_TRAITS(A)
+#endif
+#ifdef PORTB
+AVR_UTILS_SPECIALIZE_PORT_TRAITS(B)
+#endif
+#ifdef PORTC
+AVR_UTILS_SPECIALIZE_PORT_TRAITS(C)
+#endif
+#ifdef PORTD
+AVR_UTILS_SPECIALIZE_PORT_TRAITS(D)
+#endif
+#ifdef PORTE
+AVR_UTILS_SPECIALIZE_PORT_TRAITS(E)
+#endif
+#ifdef PORTF
+AVR_UTILS_SPECIALIZE_PORT_TRAITS(F)
+#endif
+
+#undef AVR_UTILS_SPECIALIZE_PORT_TRAITS
+
+
+namespace detail {
+
+/** Common digital I/O on a port. */
+template <Port P, uint8_t Mask, PinMode Mode>
+class digital_io_port {
+
+    using Traits = port_traits<P>;
+
+public:
+
+    static constexpr auto port = P;
+    static constexpr auto mask = Mask;
+    static constexpr auto mode = Mode;
 
     // Pin initialization
 
+    __attribute__((always_inline))
     static inline void init() {
         if constexpr (Mode == PinMode::Output) {
-            *controlRegister() |= Mask;
+            Traits::dataDirectionRegister() |= Mask;
         } else if constexpr (Mode == PinMode::Input) {
-            *controlRegister() &= ~Mask;
+            Traits::dataDirectionRegister() &= ~Mask;
         } else if constexpr (Mode == PinMode::InputPullup) {
-            *controlRegister() &= ~Mask;
-            *outputRegister() |= Mask; // Enable the pullup by default
-        } else if constexpr (Mode == PinMode::PWM) {
-            
-            // We just need Fast PWM Mode with prescaler 64 for all the pwm pins
-            *controlRegister() |= Mask;
-            switch (PWMTimer()) {
-                case Timer::Timer0A:
-                case Timer::Timer0B:
-                    TCCR0A = (1 << WGM00) | (1 << WGM01);
-                    TCCR0B = (1 << CS01) | (1 << CS00);
-                    break;
-                case Timer::Timer1A:
-                case Timer::Timer1B:
-                    TCCR1A = (1 << WGM10);
-                    TCCR1B = (1 << WGM12) | (1 << CS11) | (1 << CS10);
-                    break;
-                case Timer::Timer2A:
-                case Timer::Timer2B:
-                    TCCR2A = (1 << WGM20) | (1 << WGM21);
-                    TCCR2B = 1 << CS22;
-                    break;
-            }
-
-        } else {
-            static_assert(Mode != Mode, "Invalid pin mode.");
+            Traits::dataDirectionRegister() &= ~Mask;
+            Traits::outputRegister() |= Mask; // Enable the pullup by default
         }
     }
 
@@ -76,7 +91,7 @@ struct Pin {
     __attribute__((always_inline))
     static inline bool read() {
         static_assert(Mode == PinMode::Input || Mode == PinMode::InputPullup);
-        return (*inputRegister() & Mask) != 0;
+        return (Traits::inputRegister() & Mask) != 0;
     }
 
     // Digital write
@@ -84,116 +99,129 @@ struct Pin {
     __attribute__((always_inline))
     static inline void set() {
         static_assert(Mode == PinMode::Output);
-        *outputRegister() |= Mask;
+        Traits::outputRegister() |= Mask;
     }
 
     __attribute__((always_inline))
     static inline void unset() {
         static_assert(Mode == PinMode::Output);
-        *outputRegister() &= ~Mask;
+        Traits::outputRegister() &= ~Mask;
     }
 
     __attribute__((always_inline))
     static inline void toggle() {
         static_assert(Mode == PinMode::Output);
-        *outputRegister() ^= Mask;
+        Traits::outputRegister() ^= Mask;
     }
 
-    // PWM
+};
 
-    static inline constexpr Timer PWMTimer() {
-        // This is written as a series of constexpr ifs to check at compile time
-        // that we don't try to make pwm on a pin that does not support it.
-        // Also, the `Port != Port` are there to trick the compiler:
-        // a `static_assert(false, ...)` always makes the program ill-formed.
 
-        if constexpr (Port == PinPort::B) {
-            if constexpr (Mask == 1 << 1) {
-                return Timer::Timer1A;          /* Port PB1 maps to OC1A */
-            } else if constexpr (Mask == 1 << 2) {
-                return Timer::Timer1B;          /* Port PB2 maps to OC1B */
-            } else if constexpr (Mask == 1 << 3) {
-                return Timer::Timer2A;          /* Port PB3 maps to OC2A */
-            } else {
-                static_assert(Port != Port, "Pin does not have hardware PWM available.");
-            }
-        } else if constexpr (Port == PinPort::D) {
-            if constexpr (Mask == 1 << 3) {
-                return Timer::Timer2B;          /* Port PD3 maps to OC2B */
-            } else if constexpr (Mask == 1 << 5) {
-                return Timer::Timer0B;          /* Port PD5 maps to OC0B */
-            } else if constexpr (Mask == 1 << 6) {
-                return Timer::Timer0A;          /* Port PD6 maps to OC0A */
-            } else {
-                static_assert(Port != Port, "Pin does not have hardware PWM available.");
-            }
-        } else {
-            static_assert(Port != Port, "Pin does not have hardware PWM available.");
-        }
+
+/** Groups a list of pins by port, yielding a avr::list of pins with an aggregated mask for each port. */
+template <typename... Pins>
+class group_by_port {
+
+    template <typename L, typename Pin, typename = void>
+    struct aggregate_mask_or_append;
+
+    template <typename L, typename Pin>
+    struct aggregate_mask_or_append<L, Pin, enable_if_t<is_same_v<L, list<>>>> {
+        using type = typename L::template append<Pin>;
+    };
+
+    template <typename L, typename Pin>
+    struct aggregate_mask_or_append<L, Pin, enable_if_t<L::head::port == Pin::port>> {
+        using newpin = digital_io_port<Pin::port, L::head::mask | Pin::mask, Pin::mode>;
+        using type = typename L::tail::template prepend<newpin>;
+    };
+
+    template <typename L, typename Pin>
+    struct aggregate_mask_or_append<L, Pin, enable_if_t<L::head::port != Pin::port>> {
+        using type =
+            typename aggregate_mask_or_append<
+                typename L::tail,
+                Pin
+            >::type
+            ::template prepend<typename L::head>;
+    };
+
+
+
+    template <typename L, typename P, typename... Rest>
+    struct helper {
+        using tmp = typename aggregate_mask_or_append<L, P>::type;
+        using type = typename helper<tmp, Rest...>::type;
+    };
+
+    template <typename L, typename P>
+    struct helper<L, P> {
+        using type = typename aggregate_mask_or_append<L, P>::type;
+    };
+
+public:
+
+    using type = typename helper<list<>, Pins...>::type;
+
+};
+
+}
+
+
+
+/**
+ * Very simple abstraction over a single IO pin.
+ * It basically just wraps the operations with the registers in a more friendly interface.
+ */
+template <Port Port, uint8_t N, PinMode Mode>
+using Pin = detail::digital_io_port<Port, 1 << N, Mode>;
+
+
+
+/**
+ * Group of pins to optimize collective operations.
+ * Can also hold pins of different ports and modes, but only writes can be performed on them as a group.
+ */
+template <typename... Pins>
+class PinGroup {
+
+    // Group the pins by port
+    using groups = typename detail::group_by_port<Pins...>::type;
+
+public:
+
+    // Initialization
+
+    __attribute__((always_inline))
+    static inline void init() {
+        groups::for_each([](auto x) {
+            decltype(x)::init();
+        });
     }
 
-    static inline void PWM(const uint8_t value) {
-        static_assert(Mode == PinMode::PWM);
+    // Digital write
 
-        // Since `PWMTimer` is a constexpr functions, all these variables will be constant
-        // and the compiler will propagate them.
-        volatile uint8_t* valueReg8 = nullptr;
-        volatile uint16_t* valueReg16 = nullptr;
-        volatile uint8_t* controlReg = nullptr;
-        uint8_t mask = 0;
-        switch (PWMTimer()) {
-            case Timer::Timer0A: valueReg8  = &OCR0A; controlReg = &TCCR0A; mask = 1 << COM0A1; break;
-            case Timer::Timer0B: valueReg8  = &OCR0B; controlReg = &TCCR0A; mask = 1 << COM0B1; break;
-            case Timer::Timer1A: valueReg16 = &OCR1A; controlReg = &TCCR1A; mask = 1 << COM1A1; break;
-            case Timer::Timer1B: valueReg16 = &OCR1B; controlReg = &TCCR1A; mask = 1 << COM1B1; break;
-            case Timer::Timer2A: valueReg8  = &OCR2A; controlReg = &TCCR2A; mask = 1 << COM2A1; break;
-            case Timer::Timer2B: valueReg8  = &OCR2B; controlReg = &TCCR2A; mask = 1 << COM2B1; break;
-        }
-
-        // Handle the special cases of 0% and 100% duty cycles as a common digital write
-        if (value == 0 || value == 255) {
-            *controlReg &= ~mask; // Disable PWM
-            if (value == 255) {
-                *outputRegister() |= Mask;
-            } else {
-                *outputRegister() &= ~Mask;
-            }
-        } else {
-            *controlReg |= mask; // Enable PWM
-            if (valueReg8 != nullptr) {
-                *valueReg8 = value;
-            } else {
-                *valueReg16 = value;
-            }
-        }
+    __attribute__((always_inline))
+    static inline void set() {
+        groups::for_each([](auto x) {
+            decltype(x)::set();
+        });
     }
 
-
-    // Architecture-specific port-to-register mapping
-
-    static inline constexpr volatile uint8_t* controlRegister() {
-        switch (Port) {
-            case PinPort::B: return &DDRB;
-            case PinPort::C: return &DDRC;
-            case PinPort::D: return &DDRD;
-        }
+    __attribute__((always_inline))
+    static inline void unset() {
+        groups::for_each([](auto x) {
+            decltype(x)::unset();
+        });
     }
 
-    static inline constexpr volatile uint8_t* outputRegister() {
-        switch (Port) {
-            case PinPort::B: return &PORTB;
-            case PinPort::C: return &PORTC;
-            case PinPort::D: return &PORTD;
-        }
+    __attribute__((always_inline))
+    static inline void toggle() {
+        groups::for_each([](auto x) {
+            decltype(x)::toggle();
+        });
     }
 
-    static inline constexpr volatile uint8_t* inputRegister() {
-        switch (Port) {
-            case PinPort::B: return &PINB;
-            case PinPort::C: return &PINC;
-            case PinPort::D: return &PIND;
-        }
-    }
 };
 
 } // namespace avr

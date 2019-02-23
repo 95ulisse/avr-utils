@@ -1,6 +1,7 @@
 #pragma once
 
 #include <stdlib.h>
+#include <inttypes.h>
 
 namespace avr {
 
@@ -12,9 +13,9 @@ template <typename T> struct remove_reference<T&&> { using type = T; };
 
 
 
-template <typename T1, typename T2> struct is_same { static inline constexpr bool value = false; };
-template <typename T> struct is_same<T, T> { static inline constexpr bool value = true; };
-template <typename T1, typename T2> static inline constexpr bool is_same_v = is_same<T1, T2>::value;
+template <typename T1, typename T2> struct is_same { static constexpr bool value = false; };
+template <typename T> struct is_same<T, T> { static constexpr bool value = true; };
+template <typename T1, typename T2> static constexpr bool is_same_v = is_same<T1, T2>::value;
 
 
 
@@ -24,8 +25,8 @@ template <bool B, typename T = void> using enable_if_t = typename enable_if<B, T
 
 
 
-template <typename T> struct is_enum { static inline constexpr bool value = __is_enum(T); };
-template <typename T> static inline constexpr bool is_enum_v = is_enum<T>::value;
+template <typename T> struct is_enum { static constexpr bool value = __is_enum(T); };
+template <typename T> static constexpr bool is_enum_v = is_enum<T>::value;
 
 
 
@@ -43,6 +44,34 @@ template <typename T>
 constexpr T&& forward(typename remove_reference<T>::type&& x) noexcept {
     return static_cast<T&&>(x);
 }
+
+
+
+template <typename...>
+struct list;
+
+template <typename Head, typename... Rest>
+struct list<Head, Rest...> {
+    using head = Head;
+    using tail = list<Rest...>;
+
+    template <typename T> using append = list<Head, Rest..., T>;
+    template <typename T> using prepend = list<T, Head, Rest...>;
+
+    template <typename F>
+    static inline void for_each(F&& f) {
+        f(Head());
+        tail::for_each(forward<F>(f));
+    }
+};
+
+template <> struct list<> {
+    template <typename T> using append = list<T>;
+    template <typename T> using prepend = list<T>;
+
+    template <typename F>
+    static inline void for_each(F&&) {}
+};
 
 
 
@@ -64,6 +93,8 @@ struct aligned_storage {
         alignas(Align) unsigned char data[N];
     };
 };
+
+
 
 // Endianess conversion functions
 

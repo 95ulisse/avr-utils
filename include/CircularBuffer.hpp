@@ -33,7 +33,7 @@ template <size_t N>
 class CircularBuffer {
 public:
 
-    static inline constexpr size_t Dynamic = 0;
+    static constexpr size_t Dynamic = 0;
 
     static_assert(N == Dynamic || N >= 2, "Invalid buffer size.");
 
