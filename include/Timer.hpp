@@ -4,6 +4,8 @@
 #include <stdlib.h>
 #include <util/atomic.h>
 
+#include "Common.hpp"
+
 namespace avr {
 
 enum class TimerMode {
@@ -204,11 +206,34 @@ AVR_UTILS_SPECIALIZE_TIMER_TRAITS(
 )
 #endif
 
+
+
+/** Mapping from pins to timer channels. */
+template <Port P, uint8_t Mask>
+struct timer_for_pin;
+
+#define AVR_UTILS_TIMER_FOR_PIN(timer, c, port, n)          \
+    template <> struct timer_for_pin<Port::port, 1 << n> {  \
+        using timer = Timer<timer>;                         \
+        static constexpr TimerChannel channel = c;          \
+    };
+
+AVR_UTILS_TIMER_FOR_PIN(0, A, D, 6);
+AVR_UTILS_TIMER_FOR_PIN(0, B, D, 5);
+AVR_UTILS_TIMER_FOR_PIN(1, A, B, 1);
+AVR_UTILS_TIMER_FOR_PIN(1, B, B, 2);
+AVR_UTILS_TIMER_FOR_PIN(2, A, B, 3);
+AVR_UTILS_TIMER_FOR_PIN(2, B, D, 3);
+
+
+
+// Clean up a bit
 #undef AVR_UTILS_SPECIALIZE_TIMER_TRAITS
 #undef AVR_UTILS_NORMAL_MODES
 #undef AVR_UTILS_NORMAL_PRESCALERS
 #undef AVR_UTILS_EXTENDED_MODES
 #undef AVR_UTILS_EXTENDED_PRESCALERS
+#undef AVR_UTILS_TIMER_FOR_PIN
 
 
 

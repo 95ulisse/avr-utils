@@ -1,17 +1,16 @@
 #pragma once
 
+#include "Common.hpp"
 #include "Utility.hpp"
+#include "Timer.hpp"
 
 namespace avr {
-
-enum class Port {
-    A, B, C, D, E, F
-};
 
 enum class PinMode {
     Input,
     InputPullup,
-    Output
+    Output,
+    PWM
 };
 
 
@@ -22,7 +21,7 @@ struct port_traits;
 // Automatically implement all the specializations of port_traits
 // based on the macros defined by the compiler
 
-#define AVR_UTILS_SPECIALIZE_PORT_TRAITS(p)                                      \
+#define AVR_UTILS_SPECIALIZE_PORT_TRAITS(p)                                   \
     template<> struct port_traits<Port::p> {                                  \
         static volatile uint8_t& dataDirectionRegister() { return DDR ##p; }  \
         static volatile uint8_t& outputRegister() { return PORT ##p; }        \
@@ -76,6 +75,17 @@ public:
         } else if constexpr (Mode == PinMode::InputPullup) {
             Traits::dataDirectionRegister() &= ~Mask;
             Traits::outputRegister() |= Mask; // Enable the pullup by default
+        } else if constexpr (Mode == PinMode::PWM) {
+            
+            // Set the direction to output
+            Traits::dataDirectionRegister() |= Mask;
+
+            // Initialize the corresponding timer to Fast PWM with prescaler 64.
+            // This fails if this pin has no attached timer.
+            using T = typename timer_for_pin<P, Mask>::timer;
+            T::template setMode<TimerMode::FastPWM>();
+            T::template setPrescaler<TimerPrescaler::By64>();
+            
         }
     }
 
@@ -105,6 +115,27 @@ public:
     static inline void toggle() {
         static_assert(Mode == PinMode::Output);
         Traits::outputRegister() ^= Mask;
+    }
+
+    // PWM
+
+    static inline void PWM(uint8_t value) {
+        static_assert(Mode == PinMode::PWM);
+
+        // Handle the spacific 0% and 100% duty cicles as common digital writes
+        using T = typename timer_for_pin<P, Mask>::timer;
+        constexpr auto channel = timer_for_pin<P, Mask>::channel;
+        if (value == 0 || value == 255) {
+            T::template stopOutput<channel>();
+            if (value == 0) {
+                unset();
+            } else {
+                set();
+            }
+        } else {
+            T::template startOutput<channel>();
+            T::setOutputCompareValue(value);
+        }
     }
 
 };
