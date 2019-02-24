@@ -1,6 +1,7 @@
 #pragma once
 
 #include <avr/interrupt.h>
+#include <util/atomic.h>
 #include <inttypes.h>
 
 ISR(TIMER2_OVF_vect);
@@ -8,18 +9,18 @@ ISR(TIMER2_OVF_vect);
 namespace avr {
 
 /** Timer2-based counter used to keep track of the milliseconds since the boot. */
-class Time {
+class Clock {
 public:
     
-    static void Init();
+    static void init();
 
-    static inline uint64_t Millis() {
+    static inline uint64_t millis() {
 
         // Disable interrupts while reading the volatile value to avoid reading inconsistent data
-        uint8_t savedInterrupts = SREG;
-        cli();
-        uint64_t ms = _ms;
-        SREG = savedInterrupts;
+        uint64_t ms;
+        ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
+            ms = _ms;
+        }
 
         return ms;
 

@@ -16,13 +16,6 @@ enum class PinMode {
 
 
 
-/**
- * Specializations of port_traits provide the following fields:
- * 
- * static constexpr volatile uint8_t* dataDirectionRegister = ...;
- * static constexpr volatile uint8_t* outputRegister = ...;
- * static constexpr volatile uint8_t* inputRegister = ...;
- */
 template <Port P>
 struct port_traits;
 

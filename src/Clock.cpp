@@ -1,4 +1,5 @@
-#include "util/Time.hpp"
+#include "Clock.hpp"
+#include "Timer.hpp"
 
 namespace avr {
 
@@ -14,17 +15,16 @@ namespace avr {
 #define MILLIS_FRACTION_INC (MICROSECONDS_PER_OVERFLOW % 1000)
 #define MILLIS_FRACTION_MAX 1000
 
-volatile uint64_t Time::_ms = 0;
-volatile uint16_t Time::_msFraction = 0;
+volatile uint64_t Clock::_ms = 0;
+volatile uint16_t Clock::_msFraction = 0;
 
-void Time::Init() {
+void Clock::init() {
 
     // Enable Timer2 in Fast PWM mode with prescaler 64
-    TCCR2A = (1 << WGM20) | (1 << WGM21);
-    TCCR2B = 1 << CS22;
-
-    // Enable overflow interrupt
-    TIMSK2 |= (1 << TOIE2);
+    using T = Timer<2>;
+    T::setMode<TimerMode::FastPWM>();
+    T::setPrescaler<TimerPrescaler::By64>();
+    T::enableOverflowInterrupt();
 
 }
 
@@ -35,8 +35,8 @@ void Time::Init() {
 ISR(TIMER2_OVF_vect) {
 
     // Copy the variables on the stack to avoid reading them from memory every time (they are volatile)
-    uint64_t ms = Time::_ms;
-    uint16_t frac = Time::_msFraction;
+    uint64_t ms = Clock::_ms;
+    uint16_t frac = Clock::_msFraction;
 
     ms += MILLIS_INC;
     frac += MILLIS_FRACTION_INC;
@@ -45,7 +45,7 @@ ISR(TIMER2_OVF_vect) {
         frac -= MILLIS_FRACTION_MAX;
     }
 
-    Time::_ms = ms;
-    Time::_msFraction = frac;
+    Clock::_ms = ms;
+    Clock::_msFraction = frac;
 
 }
