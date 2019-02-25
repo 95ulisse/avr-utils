@@ -1,7 +1,7 @@
 #pragma once
 
 #include "avr-utils/private/common.hpp"
-#include "avr-utils/Utility.hpp"
+#include "avr-utils/utility.hpp"
 #include "avr-utils/Timer.hpp"
 
 namespace avr {

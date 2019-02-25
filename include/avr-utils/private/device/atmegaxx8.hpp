@@ -1,6 +1,6 @@
 #pragma once
 
-#include "avr-utils/Utility.hpp"
+#include "avr-utils/utility.hpp"
 
 /**
  * This file contains definitions for the following family of AVR microcontrollers:

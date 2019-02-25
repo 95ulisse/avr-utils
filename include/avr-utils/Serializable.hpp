@@ -2,7 +2,7 @@
 
 #include <inttypes.h>
 
-#include "avr-utils/Utility.hpp"
+#include "avr-utils/utility.hpp"
 
 namespace avr {
 
