@@ -4,6 +4,10 @@
 #include <util/atomic.h>
 #include <inttypes.h>
 
+#ifndef F_CPU
+# error "F_CPU must be defined."
+#endif
+
 ISR(TIMER2_OVF_vect);
 
 namespace avr {
@@ -30,7 +34,7 @@ private:
     static volatile uint64_t _ms;
     static volatile uint16_t _msFraction;
 
-    friend void TIMER2_OVF_vect();
+    friend void ::TIMER2_OVF_vect();
 };
 
 } // namespace avr

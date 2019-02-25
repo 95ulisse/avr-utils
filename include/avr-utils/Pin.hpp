@@ -1,54 +1,10 @@
 #pragma once
 
-#include "Common.hpp"
-#include "Utility.hpp"
-#include "Timer.hpp"
+#include "avr-utils/private/common.hpp"
+#include "avr-utils/Utility.hpp"
+#include "avr-utils/Timer.hpp"
 
 namespace avr {
-
-enum class PinMode {
-    Input,
-    InputPullup,
-    Output,
-    PWM
-};
-
-
-
-template <Port P>
-struct port_traits;
-
-// Automatically implement all the specializations of port_traits
-// based on the macros defined by the compiler
-
-#define AVR_UTILS_SPECIALIZE_PORT_TRAITS(p)                                   \
-    template<> struct port_traits<Port::p> {                                  \
-        static volatile uint8_t& dataDirectionRegister() { return DDR ##p; }  \
-        static volatile uint8_t& outputRegister() { return PORT ##p; }        \
-        static volatile uint8_t& inputRegister() { return PIN ##p; }          \
-    };
-
-#ifdef PORTA
-AVR_UTILS_SPECIALIZE_PORT_TRAITS(A)
-#endif
-#ifdef PORTB
-AVR_UTILS_SPECIALIZE_PORT_TRAITS(B)
-#endif
-#ifdef PORTC
-AVR_UTILS_SPECIALIZE_PORT_TRAITS(C)
-#endif
-#ifdef PORTD
-AVR_UTILS_SPECIALIZE_PORT_TRAITS(D)
-#endif
-#ifdef PORTE
-AVR_UTILS_SPECIALIZE_PORT_TRAITS(E)
-#endif
-#ifdef PORTF
-AVR_UTILS_SPECIALIZE_PORT_TRAITS(F)
-#endif
-
-#undef AVR_UTILS_SPECIALIZE_PORT_TRAITS
-
 
 namespace detail {
 

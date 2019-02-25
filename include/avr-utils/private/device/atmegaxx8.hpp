@@ -1,46 +1,19 @@
 #pragma once
 
-#include <inttypes.h>
-#include <stdlib.h>
-#include <util/atomic.h>
+#include "avr-utils/Utility.hpp"
 
-#include "Common.hpp"
+/**
+ * This file contains definitions for the following family of AVR microcontrollers:
+ * 
+ * ATmega48A/PA/88A/PA/168A/PA/328/P
+ */
 
 namespace avr {
 
-enum class TimerMode {
-    Normal,
-    ClearTimerOnCompareMatch,
-    FastPWM,
-    PhaseCorrectPWM,
-    PhaseFrequencyCorrectPWM
-};
+// Forward declarations
+template <int> class Timer;
 
-
-
-enum class TimerPrescaler {
-    Off,
-    NoPrescaler,
-    By8,
-    By32,
-    By64,
-    By128,
-    By256,
-    By1024
-};
-
-
-
-enum class TimerChannel {
-    A, B
-};
-
-
-
-template <int I>
-struct timer_traits;
-
-// Automatically specialize the timer_traits structure depending on the macros defined by the compiler
+// Timer traits
 
 #define AVR_UTILS_SPECIALIZE_TIMER_TRAITS(i, modes, prescalers)                           \
     template <> struct timer_traits<i> {                                                  \
@@ -126,10 +99,10 @@ struct timer_traits;
 #define AVR_UTILS_NORMAL_PRESCALERS(i)                                                          \
     template <TimerPrescaler Prescaler>                                                         \
     static inline void setPrescaler() {                                                         \
-        uint8_t reg = Traits::controlRegisterB();                                               \
+        uint8_t reg = controlRegisterB();                                                       \
         if constexpr (Prescaler == TimerPrescaler::Off) {                                       \
             reg &= ~( (1 << CS ## i ## 0) | (1 << CS ## i ## 1) | (1 << CS ## i ## 2) );        \
-        } else if constexpr (Prescaler == TimerPrescaler::NoPrescaling) {                       \
+        } else if constexpr (Prescaler == TimerPrescaler::NoPrescaler) {                        \
             reg &= ~( (1 << CS ## i ## 1) | (1 << CS ## i ## 2) );                              \
             reg |= (1 << CS ## i ## 0);                                                         \
         } else if constexpr (Prescaler == TimerPrescaler::By8) {                                \
@@ -147,16 +120,16 @@ struct timer_traits;
         } else {                                                                                \
             static_assert(Prescaler != Prescaler, "Unsupported prescaler for timer " #i ".");   \
         }                                                                                       \
-        Traits::controlRegisterB() = reg;                                                       \
+        controlRegisterB() = reg;                                                               \
     }
 
 #define AVR_UTILS_EXTENDED_PRESCALERS(i)                                                        \
     template <TimerPrescaler Prescaler>                                                         \
     static inline void setPrescaler() {                                                         \
-        uint8_t reg = Traits::controlRegisterB();                                               \
+        uint8_t reg = controlRegisterB();                                                       \
         if constexpr (Prescaler == TimerPrescaler::Off) {                                       \
             reg &= ~( (1 << CS ## i ## 0) | (1 << CS ## i ## 1) | (1 << CS ## i ## 2) );        \
-        } else if constexpr (Prescaler == TimerPrescaler::NoPrescaling) {                       \
+        } else if constexpr (Prescaler == TimerPrescaler::NoPrescaler) {                        \
             reg &= ~( (1 << CS ## i ## 1) | (1 << CS ## i ## 2) );                              \
             reg |= (1 << CS ## i ## 0);                                                         \
         } else if constexpr (Prescaler == TimerPrescaler::By8) {                                \
@@ -179,43 +152,35 @@ struct timer_traits;
         } else {                                                                                \
             static_assert(Prescaler != Prescaler, "Unsupported prescaler for timer " #i ".");   \
         }                                                                                       \
-        Traits::controlRegisterB() = reg;                                                       \
+        controlRegisterB() = reg;                                                               \
     }
 
-#if defined(TCCR0A) && defined(TCCR0B)
 AVR_UTILS_SPECIALIZE_TIMER_TRAITS(
     0,
     AVR_UTILS_NORMAL_MODES(0),
     AVR_UTILS_NORMAL_PRESCALERS(0)
 )
-#endif
 
-#if defined(TCCR1A) && defined(TCCR1B)
 AVR_UTILS_SPECIALIZE_TIMER_TRAITS(
     1,
     AVR_UTILS_EXTENDED_MODES(1),
     AVR_UTILS_NORMAL_PRESCALERS(1)
 )
-#endif
 
-#if defined(TCCR2A) && defined(TCCR2B)
 AVR_UTILS_SPECIALIZE_TIMER_TRAITS(
     2,
     AVR_UTILS_NORMAL_MODES(2),
     AVR_UTILS_EXTENDED_PRESCALERS(2)
 )
-#endif
 
 
 
-/** Mapping from pins to timer channels. */
-template <Port P, uint8_t Mask>
-struct timer_for_pin;
+// Timer to pin mappings
 
-#define AVR_UTILS_TIMER_FOR_PIN(timer, c, port, n)          \
-    template <> struct timer_for_pin<Port::port, 1 << n> {  \
-        using timer = Timer<timer>;                         \
-        static constexpr TimerChannel channel = c;          \
+#define AVR_UTILS_TIMER_FOR_PIN(t, c, port, n)                       \
+    template <> struct timer_for_pin<Port::port, 1 << n> {           \
+        using timer = Timer<t>;                                      \
+        static constexpr TimerChannel channel = TimerChannel::c;     \
     };
 
 AVR_UTILS_TIMER_FOR_PIN(0, A, D, 6);
@@ -234,105 +199,5 @@ AVR_UTILS_TIMER_FOR_PIN(2, B, D, 3);
 #undef AVR_UTILS_EXTENDED_MODES
 #undef AVR_UTILS_EXTENDED_PRESCALERS
 #undef AVR_UTILS_TIMER_FOR_PIN
-
-
-
-/** Wrapper around register manipulations for timer configuration. */
-template <int I>
-class Timer {
-
-    using Traits = timer_traits<I>;
-    using ValueType = typename Traits::ValueType;
-
-    // Some timers have values with more than 8 bits,
-    // so we need to disable interrupts when reading them to avoid a data race
-    static constexpr bool needsLocking = sizeof(ValueType) > 1;
-
-public:
-    
-    /** Sets the mode of the timer. */
-    template <TimerMode Mode>
-    static inline void setMode() {
-        Traits::template setMode<Mode>();
-    }
-
-    /** Sets the prescaler of the timer. */
-    template <TimerPrescaler Prescaler>
-    static inline void setPrescaler() {
-        Traits::template setPrescaler<Prescaler>();
-    }
-
-    /** Returns the current value of the counter. */
-    static inline ValueType counterValue() {
-        if constexpr (needsLocking) {
-            ValueType tmp;
-            ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
-                tmp = Traits::counterValueRegister();
-            }
-            return tmp;
-        } else {
-            return Traits::counterValueRegister();
-        }
-    }
-
-    /** Starts the output for the given channel. */
-    template <TimerChannel Channel>
-    static inline void startOutput() {
-        constexpr auto com0 = Channel == TimerChannel::A ? Traits::COMA0 : Traits::COMB0;
-        constexpr auto com1 = Channel == TimerChannel::A ? Traits::COMA1 : Traits::COMB1;
-
-        uint8_t reg = Traits::controlRegisterA();
-        reg &= ~(1 << com0);
-        reg |=  (1 << com1);
-        Traits::controlRegisterA() = reg;
-    }
-
-    /** Stops the output for the given channel. */
-    template <TimerChannel Channel>
-    static inline void stopOutput() {
-        constexpr auto com0 = Channel == TimerChannel::A ? Traits::COMA0 : Traits::COMB0;
-        constexpr auto com1 = Channel == TimerChannel::A ? Traits::COMA1 : Traits::COMB1;
-
-        Traits::controlRegisterA() &= ~( (1 << com0) | (1 << com1) );
-    }
-
-    /** Sets the value of the output compare register. */
-    template <TimerChannel Channel>
-    static inline void setOutputCompareValue(ValueType x) {
-        auto& reg = Channel == TimerChannel::A ? Traits::outputCompareRegisterA() : Traits::outputCompareRegisterB();
-        if constexpr (needsLocking) {
-            ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
-                reg = x;
-            }
-        } else {
-            reg = x;
-        }
-    }
-
-    /** Enables the overflow interrupt for this timer. */
-    static inline void enableOverflowInterrupt() {
-        Traits::interruptMaskRegister() |= (1 << Traits::TOIE);
-    }
-
-    /** Disables the overflow interrupt for this timer. */
-    static inline void disableOverflowInterrupt() {
-        Traits::interruptMaskRegister() &= ~(1 << Traits::TOIE);
-    }
-
-    /** Enables the output compare match interrupt for the given channel. */
-    template <TimerChannel Channel>
-    static inline void enableChannelCompareMatchInterrupt() {
-        constexpr auto ocie = Channel == TimerChannel::A ? Traits::OCIEA : Traits::OCIEB;
-        Traits::interruptMaskRegister() |= (1 << ocie);
-    }
-
-    /** Disables the output compare match interrupt for the given channel. */
-    template <TimerChannel Channel>
-    static inline void disableChannelCompareMatchInterrupt() {
-        constexpr auto ocie = Channel == TimerChannel::A ? Traits::OCIEA : Traits::OCIEB;
-        Traits::interruptMaskRegister() &= ~(1 << ocie);
-    }
-
-};
 
 } // namespace avr

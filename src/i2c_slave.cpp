@@ -2,7 +2,7 @@
 #include <avr/interrupt.h>
 #include <util/atomic.h>
 
-#include "I2CSlave.hpp"
+#include "avr-utils/i2c_slave.hpp"
 
 namespace avr {
 namespace i2c {
@@ -28,7 +28,7 @@ void Slave::init(uint8_t address) {
     }
 }
 
-void Slave::Stop() {
+void Slave::stop() {
     ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
         // Reset the control registers
         TWCR = 0;
@@ -43,20 +43,22 @@ void Slave::Stop() {
 
 ISR(TWI_vect)
 {
+    using namespace avr::i2c;
+
     switch(TW_STATUS)
     {
         case TW_SR_DATA_ACK:
             // Received data from master, call the receive callback
-            if (avr::I2C::__onDataReceived) {
-                avr::I2C::__onDataReceived(TWDR);
+            if (Slave::__onDataReceived) {
+                Slave::__onDataReceived(TWDR);
             }
             TWCR = (1 << TWIE) | (1 << TWINT) | (1 << TWEA) | (1 << TWEN);
             break;
         case TW_ST_SLA_ACK:
         case TW_ST_DATA_ACK:
             // Master is requesting data, call the request callback
-            if (avr::I2C::__onDataRequested) {
-                TWDR = avr::I2C::__onDataRequested();
+            if (Slave::__onDataRequested) {
+                TWDR = Slave::__onDataRequested();
             }
             TWCR = (1 << TWIE) | (1 << TWINT) | (1 << TWEA) | (1 << TWEN);
             break;

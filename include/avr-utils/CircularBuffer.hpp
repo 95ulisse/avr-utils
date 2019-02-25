@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <util/atomic.h>
 
-#include "Utility.hpp"
+#include "avr-utils/Utility.hpp"
 
 namespace avr {
 
@@ -27,17 +27,15 @@ struct CircularBufferStorage<0> {
 
 /**
  * Circular ring buffer suitable for usage from interrupt handlers with statically allocated buffer.
- * To support dynamic allocation, use CircularBuffer<CircularBuffer::Dynamic>.
+ * To support dynamic allocation, use CircularBuffer<0>.
  */
 template <size_t N>
 class CircularBuffer {
 public:
 
-    static constexpr size_t Dynamic = 0;
+    static_assert(N == 0 || N >= 2, "Invalid buffer size.");
 
-    static_assert(N == Dynamic || N >= 2, "Invalid buffer size.");
-
-    template <typename = enable_if_t<N == Dynamic>>
+    template <typename Dummy = void, typename = enable_if_t<N == 0, Dummy>>
     CircularBuffer(size_t capacity)
         : _capacity(capacity)
     {
@@ -51,7 +49,7 @@ public:
         }
     }
 
-    template <typename = enable_if_t<N != Dynamic>>
+    template <typename Dummy = void, typename = enable_if_t<N != 0, Dummy>>
     CircularBuffer()
         : _capacity(N)
     {

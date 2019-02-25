@@ -1,4 +1,4 @@
-#include "Serial.hpp"
+#include "avr-utils/Serial.hpp"
 
 namespace avr {
 

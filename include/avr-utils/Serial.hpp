@@ -5,7 +5,7 @@
 #include <avr/io.h>
 #include <avr/interrupt.h>
 
-#include "CircularBuffer.hpp"
+#include "avr-utils/CircularBuffer.hpp"
 
 #ifndef F_CPU
 #error "F_CPU must be defined."
@@ -52,12 +52,6 @@ enum class SerialConfig : uint8_t {
 class Serial {
 public:
 
-    Serial()
-        : _readBuffer(SERIAL_BUFFER_SIZE),
-          _writeBuffer(SERIAL_BUFFER_SIZE)
-    {
-    }
-
     virtual void init(unsigned long baud, SerialConfig config) {}
     virtual void stop() {}
 
@@ -92,8 +86,8 @@ public:
     }
 
 protected:
-    CircularBuffer _readBuffer;
-    CircularBuffer _writeBuffer;
+    CircularBuffer<SERIAL_BUFFER_SIZE> _readBuffer;
+    CircularBuffer<SERIAL_BUFFER_SIZE> _writeBuffer;
 };
 
 

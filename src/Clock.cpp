@@ -1,5 +1,5 @@
-#include "Clock.hpp"
-#include "Timer.hpp"
+#include "avr-utils/Clock.hpp"
+#include "avr-utils/Timer.hpp"
 
 namespace avr {
 
@@ -33,6 +33,8 @@ void Clock::init() {
 
 
 ISR(TIMER2_OVF_vect) {
+
+    using namespace avr;
 
     // Copy the variables on the stack to avoid reading them from memory every time (they are volatile)
     uint64_t ms = Clock::_ms;

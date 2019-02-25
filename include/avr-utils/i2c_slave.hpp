@@ -22,7 +22,7 @@ private:
     static void (*__onDataReceived)(uint8_t);
     static uint8_t (*__onDataRequested)();
 
-    friend void TWI_vect();
+    friend void ::TWI_vect();
 };
 
 } // namespace i2c

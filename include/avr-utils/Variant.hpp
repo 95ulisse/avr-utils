@@ -3,9 +3,9 @@
 #include <stdlib.h>
 #include <inttypes.h>
 
-#include "new.hpp"
-#include "Utility.hpp"
-#include "Serializable.hpp"
+#include "avr-utils/new.hpp"
+#include "avr-utils/Utility.hpp"
+#include "avr-utils/Serializable.hpp"
 
 namespace avr {
 
