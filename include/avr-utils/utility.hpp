@@ -3,6 +3,13 @@
 #include <stdlib.h>
 #include <inttypes.h>
 
+
+
+// Placement new
+inline void* operator new (size_t n, void* ptr) { return ptr; }
+
+
+
 namespace avr {
 
 
