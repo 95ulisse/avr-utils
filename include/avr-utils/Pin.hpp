@@ -84,13 +84,13 @@ public:
         if (value == 0 || value == 255) {
             T::template stopOutput<channel>();
             if (value == 0) {
-                unset();
+                Traits::outputRegister() &= ~Mask;
             } else {
-                set();
+                Traits::outputRegister() |= Mask;
             }
         } else {
             T::template startOutput<channel>();
-            T::setOutputCompareValue(value);
+            T::template setOutputCompareValue<channel>(value);
         }
     }
 

@@ -181,7 +181,7 @@ AVR_UTILS_SPECIALIZE_TIMER_TRAITS(
     template <> struct timer_for_pin<Port::port, 1 << n> {           \
         using timer = Timer<t>;                                      \
         static constexpr TimerChannel channel = TimerChannel::c;     \
-    };
+    }
 
 AVR_UTILS_TIMER_FOR_PIN(0, A, D, 6);
 AVR_UTILS_TIMER_FOR_PIN(0, B, D, 5);
