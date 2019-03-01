@@ -41,6 +41,12 @@ template <typename T> using remove_cv_t = typename remove_cv<T>::type;
 
 
 
+template <bool C, typename T, typename F> struct conditional { using type = F; };
+template <typename T, typename F> struct conditional<true, T, F> { using type = T; };
+template <bool C, typename T, typename F> using conditional_t = typename conditional<C, T, F>::type;
+
+
+
 template <typename T1, typename T2> struct is_same { static constexpr bool value = false; };
 template <typename T> struct is_same<T, T> { static constexpr bool value = true; };
 template <typename T1, typename T2> static constexpr bool is_same_v = is_same<T1, T2>::value;
@@ -100,6 +106,33 @@ template <> struct list<> {
     template <typename F>
     static inline void for_each(F&&) {}
 };
+
+
+
+template <typename T, T... Ints> struct integer_sequence {
+    using value_type = T;
+    static constexpr size_t size() noexcept { return sizeof...(Ints); }
+};
+
+namespace detail {
+
+template <typename T> struct identity { using type = T; };
+
+template <typename T, T N, T... Pack>
+struct make_integer_sequence_helper {
+    using type = typename conditional_t<
+        N == T(0),
+        identity<integer_sequence<T, Pack...>>,
+        make_integer_sequence_helper<T, N - 1, N - 1, Pack...>
+    >::type;
+};
+
+} // namespace detail
+
+template <typename T, T N> using make_integer_sequence = typename detail::make_integer_sequence_helper<T, N>::type;
+
+template <size_t... Ints> using index_sequence = integer_sequence<size_t, Ints...>;
+template <size_t N> using make_index_sequence = make_integer_sequence<size_t, N>;
 
 
 
