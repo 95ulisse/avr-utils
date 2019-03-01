@@ -50,7 +50,8 @@
 ##########################################################################
 # options
 ##########################################################################
-option( WITH_MCU "Add the MCU type to the target file name." OFF )
+option( WITH_MCU    "Add the MCU type to the target file name." OFF )
+option( WITH_WERROR "Treat all warnings as errors during compilation." ON )
 
 
 ##########################################################################
@@ -212,7 +213,7 @@ endif( AVR_UPLOADTOOL MATCHES avrdude )
 ##########################################################################
 # set default compiler options:
 ##########################################################################
-set( CMAKE_CXX_FLAGS "-Wall -Werror -pedantic -pedantic-errors -fno-exceptions"  CACHE STRING "Default C++ flags for all builds" FORCE )
+set( CMAKE_CXX_FLAGS "-Wall -pedantic -pedantic-errors -fno-exceptions"  CACHE STRING "Default C++ flags for all builds" FORCE )
 
 set( CMAKE_C_FLAGS_RELEASE "-Os" CACHE STRING "Default C flags for release" FORCE )
 set( CMAKE_CXX_FLAGS_RELEASE "-Os" CACHE STRING "Default C++ flags for release" FORCE )
@@ -263,6 +264,14 @@ if( WITH_MCU )
 else( WITH_MCU )
    set( MCU_TYPE_FOR_FILENAME "" )
 endif( WITH_MCU )
+
+
+##########################################################################
+# compilation warnings
+##########################################################################
+if( WITH_WERROR )
+   set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror" )
+endif( WITH_WERROR )
 
 
 ##########################################################################
