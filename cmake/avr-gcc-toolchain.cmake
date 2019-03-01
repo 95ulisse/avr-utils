@@ -267,14 +267,6 @@ endif( WITH_MCU )
 
 
 ##########################################################################
-# compilation warnings
-##########################################################################
-if( WITH_WERROR )
-   set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror" )
-endif( WITH_WERROR )
-
-
-##########################################################################
 # status messages
 ##########################################################################
 message( STATUS "Current uploadtool is: ${AVR_UPLOADTOOL}" )
@@ -314,6 +306,7 @@ function( add_avr_executable EXECUTABLE_NAME )
 
    target_compile_options(
         ${elf_file} PUBLIC
+        $<$<BOOL:${WITH_WERROR}>:-Werror>
         -ffunction-sections
         -fdata-sections
         -fpack-struct
@@ -464,6 +457,7 @@ function( add_avr_library LIBRARY_NAME )
    )
 
    target_compile_options( ${lib_file} PUBLIC
+      $<$<BOOL:${WITH_WERROR}>:-Werror>
       -ffunction-sections
       -fdata-sections
       -fpack-struct
