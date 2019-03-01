@@ -164,12 +164,12 @@ struct variant_serializer {
 
     template <typename TIter>
     inline static bool serialize(const TVariant& value, TIter&& it, TIter&& end) {
-        if (value->isInvalid() || it == end) {
+        if (value.isInvalid() || it == end) {
             return false;
         }
 
         // First the tag
-        *it++ = value->tag();
+        *it++ = value.tag();
 
         // Then the actual value
         return Helper::serialize(value, forward<TIter>(it), forward<TIter>(end));
