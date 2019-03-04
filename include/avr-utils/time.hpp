@@ -28,6 +28,13 @@ struct Timestamp {
     /** Expands this timestamp into a human-readable DateTime representation. */
     inline DateTime toDateTime() const;
 
+    // Comparison operators
+    bool operator==(const Timestamp& other) const { return timestamp == other.timestamp; }
+    bool operator< (const Timestamp& other) const { return timestamp < other.timestamp;  }
+    bool operator<=(const Timestamp& other) const { return timestamp <= other.timestamp; }
+    bool operator> (const Timestamp& other) const { return timestamp > other.timestamp;  }
+    bool operator>=(const Timestamp& other) const { return timestamp >= other.timestamp; }
+
     // Make this structure serializable
     using Serializer = avr::Serializer<
         avr::Field<&Timestamp::timestamp>
