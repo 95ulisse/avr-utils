@@ -35,6 +35,12 @@ struct Timestamp {
     bool operator> (const Timestamp& other) const { return timestamp > other.timestamp;  }
     bool operator>=(const Timestamp& other) const { return timestamp >= other.timestamp; }
 
+    // Arithmetic operators
+    Timestamp operator+(const uint32_t& other) const { return Timestamp(timestamp + other); }
+    Timestamp operator-(const uint32_t& other) const { return Timestamp(timestamp - other); }
+    Timestamp& operator+=(const uint32_t& other) { timestamp += other; return *this; }
+    Timestamp& operator-=(const uint32_t& other) { timestamp -= other; return *this; }
+
     // Make this structure serializable
     using Serializer = avr::Serializer<
         avr::Field<&Timestamp::timestamp>

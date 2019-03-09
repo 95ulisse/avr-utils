@@ -157,6 +157,16 @@ struct aligned_storage {
 
 
 
+// Min/Max functions
+
+template <typename T>
+static inline const T& min(const T& a, const T& b) { return (a < b) ? a : b; }
+
+template <typename T>
+static inline const T& max(const T& a, const T& b) { return (a < b) ? b : a; }
+
+
+
 // Endianess conversion functions
 
 static inline constexpr uint16_t htons(uint16_t x) {
