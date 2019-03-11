@@ -64,6 +64,11 @@ template <typename T> static constexpr bool is_enum_v = is_enum<T>::value;
 
 
 
+template <typename T> struct is_trivially_copyable { static constexpr bool value = __is_trivially_copyable(T); };
+template <typename T> static constexpr bool is_trivially_copyable_v = is_trivially_copyable<T>::value;
+
+
+
 template <typename T> struct underlying_type { using type = __underlying_type(T); };
 template <typename T> using underlying_type_t = typename underlying_type<T>::type;
 
