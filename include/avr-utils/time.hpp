@@ -17,7 +17,9 @@ struct DateTime;
 struct Timestamp {
     uint32_t timestamp;
 
-    Timestamp(uint32_t t = 0)
+    Timestamp() = default;
+
+    Timestamp(uint32_t t)
         : timestamp(t)
     {
     }
@@ -59,8 +61,10 @@ struct DateTime {
     unsigned char minutes;
     unsigned char seconds;
 
+    DateTime() = default;
+
     DateTime(
-        unsigned int y = 0, unsigned char mo = 0, unsigned char d = 0,
+        unsigned int y, unsigned char mo, unsigned char d,
         unsigned char h = 0 , unsigned char mi = 0, unsigned char s = 0
     )
         : year(y),
