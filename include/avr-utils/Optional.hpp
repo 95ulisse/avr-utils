@@ -5,8 +5,11 @@
 namespace avr {
 
 /** Inactive state of an optional. */
-struct nullopt_t {};
-static constexpr nullopt_t nullopt = {};
+struct nullopt_t {
+    struct constructor_tag {};
+    constexpr explicit nullopt_t(constructor_tag) {}
+};
+static constexpr nullopt_t nullopt = nullopt_t(nullopt_t::constructor_tag());
 
 
 
@@ -17,13 +20,13 @@ public:
 
     // Initialization constructors
 
-    Optional() : Optional(nullopt) {}
+    constexpr Optional() : Optional(nullopt) {}
 
-    Optional(nullopt_t) {}
+    constexpr Optional(nullopt_t) {}
 
-    Optional(const T& x) { initialize(x); }
+    constexpr Optional(const T& x) { initialize(x); }
 
-    Optional(T&& x) { initialize(move(x)); }
+    constexpr Optional(T&& x) { initialize(move(x)); }
 
     // Copy and move constructors
 
@@ -66,28 +69,38 @@ public:
         return *this;
     }
 
+    inline const Optional& operator=(const Optional&& rhs) {
+        if      ( _active && !rhs._active) reset();
+        else if ( _active &&  rhs._active) contained_obj() = move(*rhs);
+        else if (!_active &&  rhs._active) initialize(move(*rhs));
+
+        return *this;
+    }
+
     // Observers
 
-    inline operator bool()  const { return _active; }
-    inline bool has_value() const { return _active; }
+    inline constexpr operator bool()  const { return _active; }
+    inline constexpr bool has_value() const { return _active; }
 
-    inline const T& value() const& { if (!_active) abort(); else return contained_obj(); }
-    inline T&       value() &      { if (!_active) abort(); else return contained_obj(); }
-    inline T&&      value() &&     { if (!_active) abort(); else return move(contained_obj()); };
+    inline constexpr const T&  value() const&  { if (!_active) abort(); else return contained_obj(); }
+    inline constexpr T&        value() &       { if (!_active) abort(); else return contained_obj(); }
+    inline constexpr T&&       value() &&      { if (!_active) abort(); else return move(contained_obj()); };
+    inline constexpr const T&& value() const&& { if (!_active) abort(); else return move(contained_obj()); };
 
-    inline T* operator->() { return ptr(); }
+    inline constexpr T* operator->() { return ptr(); }
 
-    inline const T& operator*() const& { return contained_obj(); }
-    inline T&       operator*() &      { return contained_obj(); }
-    inline T&&      operator*() &&     { return move(contained_obj()); }
+    inline constexpr const T&  operator*() const&  { return contained_obj(); }
+    inline constexpr T&        operator*() &       { return contained_obj(); }
+    inline constexpr T&&       operator*() &&      { return move(contained_obj()); }
+    inline constexpr const T&& operator*() const&& { return move(contained_obj()); }
     
     template <typename V>
-    inline T value_or(V&& v) const& {
+    inline constexpr T value_or(V&& v) const& {
         return _active ? contained_obj() : static_cast<T>(v);
     }
 
     template <typename V>
-    inline T value_or(V&& v) && {
+    inline constexpr T value_or(V&& v) && {
         return _active ? move(contained_obj()) : static_cast<T>(v);
     }
 
@@ -110,12 +123,12 @@ private:
     bool _active;
     typename aligned_storage<sizeof(T), alignof(T)>::type _storage;
 
-    inline T* ptr() {
+    inline constexpr T* ptr() {
         return reinterpret_cast<T*>(&_storage.data);
     }
 
-    inline T& contained_obj() &   { return *ptr(); }
-    inline T&& contained_obj() && { return move(*ptr()); }
+    inline constexpr T& contained_obj() &   { return *ptr(); }
+    inline constexpr T&& contained_obj() && { return move(*ptr()); }
 
     template <typename... Args>
     void initialize(Args&&... args) {

@@ -27,7 +27,7 @@ public:
     {
     }
 
-    TReturn operator()(TArgs&&... args) {
+    TReturn operator()(TArgs... args) const {
         if (_obj == nullptr) {
             return _f_free(forward<TArgs>(args)...);
         } else {
