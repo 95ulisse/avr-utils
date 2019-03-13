@@ -86,6 +86,13 @@ constexpr T&& forward(typename remove_reference<T>::type&& x) noexcept {
 
 
 
+template <typename T>
+constexpr typename remove_reference<T>::type&& move(T&& x) noexcept {
+    return static_cast<typename remove_reference<T>::type&&>(x);
+}
+
+
+
 template <typename...>
 struct list;
 
