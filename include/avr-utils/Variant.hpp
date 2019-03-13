@@ -87,7 +87,7 @@ struct variant_helper<TVariant, T, Rest...> {
     }
 
     template <typename TIter>
-    inline static bool deserialize(uint8_t tag, TVariant& v, TIter&& it, TIter&& end) {
+    inline static Optional<size_t> deserialize(uint8_t tag, TVariant& v, TIter&& it, TIter&& end) {
         if (tag == TVariant::Tags::template get<T>()) {
             v.template emplace<T>();
             auto& x = v.template get<T>();
@@ -98,7 +98,7 @@ struct variant_helper<TVariant, T, Rest...> {
     }
     
     template <typename TIter>
-    inline static bool serialize(const TVariant& v, TIter&& it, TIter&& end) {
+    inline static Optional<size_t> serialize(const TVariant& v, TIter&& it, TIter&& end) {
         if (v.template is<T>()) {
             auto& x = v.template get<T>();
             return ValueSerializer<T>::serialize(&x, forward<TIter>(it), forward<TIter>(end));
@@ -123,13 +123,13 @@ struct variant_helper<TVariant> {
     inline static void visit(uint8_t tag, const void* storage, TVisitor&& visitor) {}
 
     template <typename TIter>
-    inline static bool deserialize(uint8_t, TVariant&, TIter&&, TIter&&) {
-        return false;
+    inline static Optional<size_t> deserialize(uint8_t, TVariant&, TIter&&, TIter&&) {
+        return nullopt;
     }
     
     template <typename TIter>
-    inline static bool serialize(const TVariant&, TIter&&, TIter&&) {
-        return false;
+    inline static Optional<size_t> serialize(const TVariant&, TIter&&, TIter&&) {
+        return nullopt;
     }
 
 };
@@ -149,30 +149,38 @@ template <typename TVariant, typename Helper>
 struct variant_serializer {
     
     template <typename TIter>
-    inline static bool deserialize(TVariant& value, TIter&& it, TIter&& end) {
+    inline static Optional<size_t> deserialize(TVariant& value, TIter&& it, TIter&& end) {
         
         // First the tag
         if (it == end) {
-            return false;
+            return nullopt;
         }
         uint8_t tag = *it++;
 
         // Then the value
-        return Helper::deserialize(tag, value, forward<TIter>(it), forward<TIter>(end));
+        if (auto res = Helper::deserialize(tag, value, forward<TIter>(it), forward<TIter>(end))) {
+            return *res + 1;
+        } else {
+            return nullopt;
+        }
         
     }
 
     template <typename TIter>
-    inline static bool serialize(const TVariant& value, TIter&& it, TIter&& end) {
+    inline static Optional<size_t> serialize(const TVariant& value, TIter&& it, TIter&& end) {
         if (value.isInvalid() || it == end) {
-            return false;
+            return nullopt;
         }
 
         // First the tag
         *it++ = value.tag();
 
         // Then the actual value
-        return Helper::serialize(value, forward<TIter>(it), forward<TIter>(end));
+        if (auto res = Helper::serialize(value, forward<TIter>(it), forward<TIter>(end))) {
+            return *res + 1;
+        } else {
+            return nullopt;
+        }
         
     }
 

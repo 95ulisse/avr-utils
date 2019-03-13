@@ -3,6 +3,7 @@
 #include <inttypes.h>
 
 #include "avr-utils/utility.hpp"
+#include "avr-utils/Optional.hpp"
 
 namespace avr {
 
@@ -20,21 +21,21 @@ template <>
 struct ValueSerializer<uint8_t> {
     
     template <typename TIter>
-    inline static bool deserialize(uint8_t* value, TIter&& it, TIter&& end) {
+    inline static Optional<size_t> deserialize(uint8_t* value, TIter&& it, TIter&& end) {
         if (it == end) {
-            return false;
+            return nullopt;
         }
         *value = *it++;
-        return true;
+        return 1;
     }
 
     template <typename TIter>
-    inline static bool serialize(const uint8_t* value, TIter&& it, TIter&& end) {
+    inline static Optional<size_t> serialize(const uint8_t* value, TIter&& it, TIter&& end) {
         if (it == end) {
-            return false;
+            return nullopt;
         }
         *it++ = *value;
-        return true;
+        return 1;
     }
 
 };
@@ -45,33 +46,33 @@ struct ValueSerializer<uint16_t> {
     // We only support Big Endian integers
 
     template <typename TIter>
-    inline static bool deserialize(uint16_t* value, TIter&& it, TIter&& end) {
+    inline static Optional<size_t> deserialize(uint16_t* value, TIter&& it, TIter&& end) {
         if (it == end) {
-            return false;
+            return nullopt;
         }
         *value = ((uint16_t) (*it++ & 0xFF) << 8);
 
         if (it == end) {
-            return false;
+            return nullopt;
         }
         *value |= (*it++ & 0xFF);
 
-        return true;
+        return 2;
     }
 
     template <typename TIter>
-    inline static bool serialize(const uint16_t* value, TIter&& it, TIter&& end) {
+    inline static Optional<size_t> serialize(const uint16_t* value, TIter&& it, TIter&& end) {
         if (it == end) {
-            return false;
+            return nullopt;
         }
         *it++ = (uint8_t) ((*value >> 8) & 0xFF);
         
         if (it == end) {
-            return false;
+            return nullopt;
         }
         *it++ = (uint8_t) ((*value) & 0xFF);
 
-        return true;
+        return 2;
     }
 
 };
@@ -82,26 +83,26 @@ struct ValueSerializer<uint32_t> {
     // We only support Big Endian integers
 
     template <typename TIter>
-    inline static bool deserialize(uint32_t* value, TIter&& it, TIter&& end) {
+    inline static Optional<size_t> deserialize(uint32_t* value, TIter&& it, TIter&& end) {
         *value = 0;
         for (int i = 3; i >= 0; --i) {
             if (it == end) {
-                return false;
+                return nullopt;
             }
             *value |= ((uint32_t) (*it++ & 0xFF) << (i * 8));
         }
-        return true;
+        return 4;
     }
 
     template <typename TIter>
-    inline static bool serialize(const uint32_t* value, TIter&& it, TIter&& end) {
+    inline static Optional<size_t> serialize(const uint32_t* value, TIter&& it, TIter&& end) {
         for (int i = 3; i >= 0; --i) {
             if (it == end) {
-                return false;
+                return nullopt;
             }
             *it++ = (uint8_t) ((*value >> (i * 8)) & 0xFF);
         }
-        return true;
+        return 4;
     }
 
 };
@@ -112,25 +113,25 @@ struct ValueSerializer<bool> {
     // Yep, each bool takes a whole byte
 
     template <typename TIter>
-    inline static bool deserialize(bool* value, TIter&& it, TIter&& end) {
+    inline static Optional<size_t> deserialize(bool* value, TIter&& it, TIter&& end) {
         if (it == end) {
-            return false;
+            return nullopt;
         }
         uint8_t x = *it++;
         if (x != 0 && x != 1) {
-            return false;
+            return nullopt;
         }
         *value = x == 1;
-        return true;
+        return 1;
     }
 
     template <typename TIter>
-    inline static bool serialize(const bool* value, TIter&& it, TIter&& end) {
+    inline static Optional<size_t> serialize(const bool* value, TIter&& it, TIter&& end) {
         if (it == end) {
-            return false;
+            return nullopt;
         }
         *it++ = (uint8_t) (*value ? 1 : 0);
-        return true;
+        return 1;
     }
 
 };
@@ -138,26 +139,32 @@ struct ValueSerializer<bool> {
 template <typename T, size_t N>
 struct ValueSerializer<T[N]> {
 
-    // Serializer forarrays with compile-time known length delegate to the underlying type
+    // Serializer for arrays with compile-time known length delegate to the underlying type
 
     template <typename TIter>
-    inline static bool deserialize(T (*value)[N], TIter&& it, TIter&& end) {
+    inline static Optional<size_t> deserialize(T (*value)[N], TIter&& it, TIter&& end) {
+        size_t total = 0;
         for (unsigned int i = 0; i < N; ++i) {
-            if (!ValueSerializer<T>::deserialize(&((*value)[i]), forward<TIter>(it), forward<TIter>(end))) {
-                return false;
+            if (auto res = ValueSerializer<T>::deserialize(&((*value)[i]), forward<TIter>(it), forward<TIter>(end))) {
+                total += *res;
+            } else {
+                return nullopt;
             }
         }
-        return true;
+        return total;
     }
 
     template <typename TIter>
-    inline static bool serialize(const T (*value)[N], TIter&& it, TIter&& end) {
+    inline static Optional<size_t> serialize(const T (*value)[N], TIter&& it, TIter&& end) {
+        size_t total = 0;
         for (unsigned int i = 0; i < N; ++i) {
-            if (!ValueSerializer<T>::serialize(&((*value)[i]), forward<TIter>(it), forward<TIter>(end))) {
-                return false;
+            if (auto res = ValueSerializer<T>::serialize(&((*value)[i]), forward<TIter>(it), forward<TIter>(end))) {
+                total += *res;
+            } else {
+                return nullopt;
             }
         }
-        return true;
+        return total;
     }
 
 };
@@ -169,12 +176,12 @@ struct ValueSerializer<T, enable_if_t<is_enum_v<T>>> {
     using U = underlying_type_t<T>;
 
     template <typename TIter>
-    inline static bool deserialize(T* value, TIter&& it, TIter&& end) {
+    inline static Optional<size_t> deserialize(T* value, TIter&& it, TIter&& end) {
         return ValueSerializer<U>::deserialize(reinterpret_cast<U*>(value), forward<TIter>(it), forward<TIter>(end));
     }
 
     template <typename TIter>
-    inline static bool serialize(const T* value, TIter&& it, TIter&& end) {
+    inline static Optional<size_t> serialize(const T* value, TIter&& it, TIter&& end) {
         return ValueSerializer<U>::serialize(reinterpret_cast<const U*>(value), forward<TIter>(it), forward<TIter>(end));
     }
 
@@ -203,12 +210,12 @@ struct ValueSerializer<T, enable_if_t<has_custom_serializer<T>::value>> {
     using S = typename T::Serializer;
 
     template <typename TIter>
-    inline static bool deserialize(T* value, TIter&& it, TIter&& end) {
+    inline static Optional<size_t> deserialize(T* value, TIter&& it, TIter&& end) {
         return S::deserialize(*value, forward<TIter>(it), forward<TIter>(end));
     }
 
     template <typename TIter>
-    inline static bool serialize(const T* value, TIter&& it, TIter&& end) {
+    inline static Optional<size_t> serialize(const T* value, TIter&& it, TIter&& end) {
         return S::serialize(*value, forward<TIter>(it), forward<TIter>(end));
     }
 
@@ -227,19 +234,23 @@ struct combine_fields<F, Rest...> {
     static_assert(is_same_v<ContainerType, typename combine_fields<Rest...>::ContainerType>, "Can only combine fields of the same type");
 
     template <typename TIter>
-    inline static bool deserialize(typename F::ContainerType& obj, TIter&& it, TIter&& end) {
-        if (F::deserialize(obj, forward<TIter>(it), forward<TIter>(end))) {
-            return combine_fields<Rest...>::deserialize(obj, forward<TIter>(it), forward<TIter>(end));
+    inline static Optional<size_t> deserialize(typename F::ContainerType& obj, TIter&& it, TIter&& end) {
+        if (auto res1 = F::deserialize(obj, forward<TIter>(it), forward<TIter>(end))) {
+            if (auto res2 = combine_fields<Rest...>::deserialize(obj, forward<TIter>(it), forward<TIter>(end))) {
+                return (*res1) + (*res2);
+            }
         }
-        return false;
+        return nullopt;
     }
 
     template <typename TIter>
-    inline static bool serialize(const typename F::ContainerType& obj, TIter&& it, TIter&& end) {
-        if (F::serialize(obj, forward<TIter>(it), forward<TIter>(end))) {
-            return combine_fields<Rest...>::serialize(obj, forward<TIter>(it), forward<TIter>(end));
+    inline static Optional<size_t> serialize(const typename F::ContainerType& obj, TIter&& it, TIter&& end) {
+        if (auto res1 = F::serialize(obj, forward<TIter>(it), forward<TIter>(end))) {
+            if (auto res2 = combine_fields<Rest...>::serialize(obj, forward<TIter>(it), forward<TIter>(end))) {
+                return (*res1) + (*res2);
+            }
         }
-        return false;
+        return nullopt;
     }
 
 };
@@ -250,12 +261,12 @@ struct combine_fields<F> {
     using ContainerType = typename F::ContainerType;
 
     template <typename TIter>
-    inline static bool deserialize(ContainerType& obj, TIter&& it, TIter&& end) {
+    inline static Optional<size_t> deserialize(ContainerType& obj, TIter&& it, TIter&& end) {
         return F::deserialize(obj, forward<TIter>(it), forward<TIter>(end));
     }
 
     template <typename TIter>
-    inline static bool serialize(const ContainerType& obj, TIter&& it, TIter&& end) {
+    inline static Optional<size_t> serialize(const ContainerType& obj, TIter&& it, TIter&& end) {
         return F::serialize(obj, forward<TIter>(it), forward<TIter>(end));
     }
 
@@ -272,12 +283,12 @@ struct Field<member> {
     using ValueType = TValue;
 
     template <typename TIter>
-    inline static bool deserialize(TContainer& obj, TIter&& it, TIter&& end) {
+    inline static Optional<size_t> deserialize(TContainer& obj, TIter&& it, TIter&& end) {
         return __detail::ValueSerializer<TValue>::deserialize(&(obj.*member), forward<TIter>(it), forward<TIter>(end));
     }
 
     template <typename TIter>
-    inline static bool serialize(const TContainer& obj, TIter&& it, TIter&& end) {
+    inline static Optional<size_t> serialize(const TContainer& obj, TIter&& it, TIter&& end) {
         return __detail::ValueSerializer<TValue>::serialize(&(obj.*member), forward<TIter>(it), forward<TIter>(end));
     }
 };
@@ -293,12 +304,12 @@ class Serializer {
 public:
 
     template <typename TIter>
-    inline static bool deserialize(typename CombinedFields::ContainerType& obj, TIter&& it, TIter&& end) {
+    inline static Optional<size_t> deserialize(typename CombinedFields::ContainerType& obj, TIter&& it, TIter&& end) {
         return CombinedFields::deserialize(obj, forward<TIter>(it), forward<TIter>(end));
     }
 
     template <typename TIter>
-    inline static bool serialize(const typename CombinedFields::ContainerType& obj, TIter&& it, TIter&& end) {
+    inline static Optional<size_t> serialize(const typename CombinedFields::ContainerType& obj, TIter&& it, TIter&& end) {
         return CombinedFields::serialize(obj, forward<TIter>(it), forward<TIter>(end));
     }
 
@@ -310,13 +321,13 @@ class Serializer<> {
 public:
 
     template <typename TContainer, typename TIter>
-    inline static bool deserialize(TContainer& obj, TIter&& it, TIter&& end) {
-        return true;
+    inline static Optional<size_t> deserialize(TContainer& obj, TIter&& it, TIter&& end) {
+        return 0;
     }
 
     template <typename TContainer, typename TIter>
-    inline static bool serialize(const TContainer& obj, TIter&& it, TIter&& end) {
-        return true;
+    inline static Optional<size_t> serialize(const TContainer& obj, TIter&& it, TIter&& end) {
+        return 0;
     }
 
 };
