@@ -26,6 +26,9 @@ void Clock::init() {
     T::setPrescaler<TimerPrescaler::By64>();
     T::enableOverflowInterrupt();
 
+    // Enable interrupts
+    sei();
+
 }
 
 } // namespace avr

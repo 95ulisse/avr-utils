@@ -26,6 +26,9 @@ void Slave::init(uint8_t address) {
         // Set the TWCR to enable address matching and enable TWI, clear TWINT, enable TWI interrupt
         TWCR = (1 << TWIE) | (1 << TWEA) | (1 << TWINT) | (1 << TWEN);
     }
+
+    // Enable interrupts
+    sei();
 }
 
 void Slave::stop() {
@@ -65,8 +68,8 @@ ISR(TWI_vect)
         case TW_BUS_ERROR:
             // Some sort of erroneous state, prepare TWI to be readdressed
             TWCR = 0;
-            TWCR = (1 << TWIE) | (1 << TWINT) | (1 << TWEA) | (1 << TWEN); 
-        break;
+            TWCR = (1 << TWIE) | (1 << TWINT) | (1 << TWEA) | (1 << TWEN);
+            break;
         default:
             TWCR = (1 << TWIE) | (1 << TWINT) | (1 << TWEA) | (1 << TWEN);
             break;
